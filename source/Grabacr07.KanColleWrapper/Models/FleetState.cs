@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -53,28 +53,6 @@ namespace Grabacr07.KanColleWrapper.Models
 				if (this._TotalLevel != value)
 				{
 					this._TotalLevel = value;
-					this.RaisePropertyChanged();
-				}
-			}
-		}
-
-		#endregion
-
-		#region AirSuperiorityPotential 変更通知プロパティ
-
-		private double _AirSuperiorityPotential;
-
-		/// <summary>
-		/// 艦隊の制空能力を取得します。
-		/// </summary>
-		public double AirSuperiorityPotential
-		{
-			get { return this._AirSuperiorityPotential; }
-			private set
-			{
-				if (this._AirSuperiorityPotential != value)
-				{
-					this._AirSuperiorityPotential = value;
 					this.RaisePropertyChanged();
 				}
 			}
@@ -240,7 +218,9 @@ namespace Grabacr07.KanColleWrapper.Models
 			this.CompositeDisposable.Add(this.Condition);
 			this.CompositeDisposable.Add(new PropertyChangedWeakEventListener(KanColleClient.Current.Settings)
 			{
-				{ nameof(IKanColleClientSettings.ViewRangeCalcType), (sender, args) => this.Calculate() },
+				{ nameof(IKanColleClientSettings.ViewRangeCalcType), (_, __) => this.Calculate() },
+				{ nameof(IKanColleClientSettings.IsViewRangeCalcIncludeFirstFleet), (_, __) => this.Calculate() },
+				{ nameof(IKanColleClientSettings.IsViewRangeCalcIncludeSecondFleet), (_, __) => this.Calculate() },
 			});
 		}
 
@@ -255,17 +235,12 @@ namespace Grabacr07.KanColleWrapper.Models
 
 			this.TotalLevel = ships.HasItems() ? ships.Sum(x => x.Level) : 0;
 			this.AverageLevel = ships.HasItems() ? (double)this.TotalLevel / ships.Length : 0.0;
-			this.AirSuperiorityPotential = firstFleetShips.Sum(s => s.CalcAirSuperiorityPotential());
-			this.MinAirSuperiorityPotential = firstFleetShips.Sum(s => s.CalcMinAirSuperiorityPotential());
-			this.MaxAirSuperiorityPotential = firstFleetShips.Sum(s => s.CalcMaxAirSuperiorityPotential());
-			this.Speed = ships.All(x => x.Info.Speed == ShipSpeed.Fast)
-				? FleetSpeed.Fast
-				: ships.All(x => x.Info.Speed == ShipSpeed.Low)
-					? FleetSpeed.Low
-					: FleetSpeed.Hybrid;
+			this.MinAirSuperiorityPotential = firstFleetShips.Sum(x => x.GetAirSuperiorityPotential(AirSuperiorityCalculationOptions.Minimum));
+			this.MaxAirSuperiorityPotential = firstFleetShips.Sum(x => x.GetAirSuperiorityPotential(AirSuperiorityCalculationOptions.Maximum));
+			this.Speed = new FleetSpeed(Array.ConvertAll(ships, x => x.Speed));
 
 			var logic = ViewRangeCalcLogic.Get(KanColleClient.Current.Settings.ViewRangeCalcType);
-			this.ViewRange = logic.Calc(ships.ToArray());
+			this.ViewRange = logic.Calc(this.source);
 			this.ViewRangeCalcType = logic.Name;
 
 			this.Calculated?.Invoke(this, new EventArgs());

@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using Grabacr07.KanColleWrapper.Internal;
 using Grabacr07.KanColleWrapper.Models.Raw;
 
@@ -59,7 +58,7 @@ namespace Grabacr07.KanColleWrapper.Models
 		/// <summary>
 		/// この艦娘が最大Lvになるために必要な経験値を取得します。
 		/// </summary>
-		public int ExpForLevelMax => Experience.GetShipExpForSpecifiedLevel(this.Exp, 155);
+		public int ExpForLevelMax => Experience.GetShipExpForSpecifiedLevel(this.Exp, 165);
 
 		#region HP 変更通知プロパティ
 
@@ -302,9 +301,16 @@ namespace Grabacr07.KanColleWrapper.Models
 		#endregion
 
 		/// <summary>
+		/// 装備によるボーナスを含めた艦の速力を取得します。
+		/// </summary>
+		public ShipSpeed Speed => ShipSpeedConverter.FromInt32(this.RawData.api_soku);
+
+		/// <summary>
 		/// 装備によるボーナスを含めた索敵ステータス値を取得します。
 		/// </summary>
 		public int ViewRange => this.RawData.api_sakuteki.Get(0) ?? 0;
+
+		public int ASW => this.RawData.api_taisen.Get(0) ?? 0;
 
 		/// <summary>
 		/// 火力・雷装・対空・装甲のすべてのステータス値が最大値に達しているかどうかを示す値を取得します。

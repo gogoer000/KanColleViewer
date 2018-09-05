@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Linq;
@@ -134,6 +134,8 @@ namespace Grabacr07.KanColleWrapper
 			proxy.api_req_hokyu_charge.TryParse<kcsapi_charge>().Subscribe(x => this.Charge(x.Data));
 			proxy.api_req_kaisou_powerup.TryParse<kcsapi_powerup>().Subscribe(this.Powerup);
 			proxy.api_req_kaisou_slot_exchange_index.TryParse<kcsapi_slot_exchange_index>().Subscribe(this.ExchangeSlot);
+			proxy.api_req_kaisou_slot_deprive.TryParse<kcsapi_slot_deprive>().Subscribe(x => this.DepriveSlotItem(x.Data));
+
 			proxy.api_req_kousyou_getship.TryParse<kcsapi_kdock_getship>().Subscribe(x => this.GetShip(x.Data));
 			proxy.api_req_kousyou_destroyship.TryParse<kcsapi_destroyship>().Subscribe(this.DestoryShip);
 			proxy.api_req_member_updatedeckname.TryParse().Subscribe(this.UpdateFleetName);
@@ -251,14 +253,15 @@ namespace Grabacr07.KanColleWrapper
 				fleet.RaiseShipsUpdated();
 
 				var index = int.Parse(data.Request["api_ship_idx"]);
-				if (index == -1)
+				var shipId = int.Parse(data.Request["api_ship_id"]);
+				if (index == 0 && shipId == -2)
 				{
 					// 旗艦以外をすべて外すケース
 					fleet.UnsetAll();
 					return;
 				}
 
-				var ship = this.Ships[int.Parse(data.Request["api_ship_id"])];
+				var ship = this.Ships[shipId];
 				if (ship == null)
 				{
 					// 艦を外すケース
@@ -378,6 +381,16 @@ namespace Grabacr07.KanColleWrapper
 
 		#endregion
 
+		#region 改装 (DepriveSlotItem)
+
+		private void DepriveSlotItem(kcsapi_slot_deprive source)
+		{
+			this.Ships[source.api_ship_data.api_unset_ship.api_id]?.Update(source.api_ship_data.api_unset_ship);
+			this.Ships[source.api_ship_data.api_set_ship.api_id]?.Update(source.api_ship_data.api_set_ship);
+		}
+
+		#endregion
+
 		#region 工廠 (Get / Destroy)
 
 		private void GetShip(kcsapi_kdock_getship source)
@@ -392,14 +405,18 @@ namespace Grabacr07.KanColleWrapper
 		{
 			try
 			{
-				var ship = this.Ships[int.Parse(svd.Request["api_ship_id"])];
-				if (ship != null)
+				var ships = svd.Request["api_ship_id"]
+					.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries)
+					.Select(x => int.Parse(x))
+					.Select(x => this.Ships[x]);
+                    
+				foreach(var ship in ships)
 				{
 					this.homeport.Itemyard.RemoveFromShip(ship);
 
 					this.Ships.Remove(ship);
-					this.RaiseShipsChanged();
 				}
+				this.RaiseShipsChanged();
 			}
 			catch (Exception ex)
 			{
